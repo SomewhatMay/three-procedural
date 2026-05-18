@@ -6,7 +6,11 @@ type BlockType = "air" | "grass" | "stone";
 export class BoxyTerrain {
   private meshes: THREE.Mesh[][];
 
+  private blocks = new Map<string, THREE.Mesh>();
   private heights: number[][];
+
+  private geometry = new THREE.BoxGeometry(1, 1, 1);
+  private material = new THREE.MeshStandardMaterial({ vertexColors: false });
 
   constructor(private sizeX: number, private sizeY: number) {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -41,6 +45,10 @@ export class BoxyTerrain {
     if (y > h) return "air";
     if (y === h) return "grass";
     return "stone";
+  }
+
+  private key(x: number, y: number, z: number) {
+    return `${x}|${y}|${z}`;
   }
 
   setHeight(x: number, y: number, height: number) {

@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { scene } from "../world/scene";
-import { createNoise2D } from "simplex-noise";
+import { createNoise2D, createNoise3D } from "simplex-noise";
+import { HEIGHT } from "../main";
 
 const noise2D = createNoise2D();
+const noise3D = createNoise3D();
 
 type BlockType = "air" | "grass" | "stone";
 
@@ -26,8 +28,23 @@ export class BoxyTerrain {
     );
   }
 
+  private isCave(x: number, y: number, z: number) {
+    if (y === 1) return false;
+
+    const frequency = 0.05;
+    const value =
+      noise3D(x * frequency, y * frequency, z * frequency) +
+      0 * noise3D(x * frequency * 2, y * frequency * 2, z * frequency * 2);
+
+    const depthMultiplier = y / HEIGHT;
+
+    return value + depthMultiplier > 0.8;
+  }
+
   getBlock(x: number, y: number, z: number): BlockType {
     const h = this.getHeight(x, z);
+
+    if (this.isCave(x, y, z)) return "air";
 
     if (y > h) return "air";
     if (y === h) return "grass";

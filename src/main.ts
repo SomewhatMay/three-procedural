@@ -9,8 +9,9 @@ import { BoxyTerrain } from "./components/boxy-terrain";
 import { updateControls } from "./world/controls";
 
 const terrain = new BoxyTerrain();
+export const HEIGHT = 40;
 
-terrain.generate(100, 40, 100);
+terrain.generate(100, HEIGHT, 100);
 
 function animate(): void {
   requestAnimationFrame(animate);

@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { scene } from "../world/scene";
 
+type BlockType = "air" | "grass" | "stone";
+
 export class BoxyTerrain {
   private meshes: THREE.Mesh[][];
 
@@ -27,6 +29,18 @@ export class BoxyTerrain {
         this.meshes[x][y] = mesh;
       }
     }
+  }
+
+  private getHeight(x: number, z: number): number {
+    return 10;
+  }
+
+  getBlock(x: number, y: number, z: number): BlockType {
+    const h = this.getHeight(x, z);
+
+    if (y > h) return "air";
+    if (y === h) return "grass";
+    return "stone";
   }
 
   setHeight(x: number, y: number, height: number) {

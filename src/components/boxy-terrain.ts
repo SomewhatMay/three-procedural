@@ -7,7 +7,10 @@ import { Trees } from "./trees";
 const noise2D = createNoise2D();
 const noise3D = createNoise3D();
 
-type BlockType = "air" | "grass" | "stone" | "wood" | "leaves";
+type BlockType = "air" | "grass" | "stone" | "wood" | "leaves" | "water";
+
+const seaLevel = 9;
+const riverThreshold = 0.78;
 
 export class BoxyTerrain {
   private blocks = new Map<string, THREE.Mesh>();
@@ -21,8 +24,12 @@ export class BoxyTerrain {
     this.trees = new Trees(this);
   }
 
+  private getRiverRegion(x: number, z: number) {
+    return 1 - Math.abs(noise2D(x * 0.02, z * 0.02));
+  }
+
   private getHeight(x: number, z: number): number {
-    return Math.floor(
+    const height = Math.floor(
       Math.max(
         1,
         noise2D(x * 0.01, z * 0.01) * 3 +
@@ -31,6 +38,16 @@ export class BoxyTerrain {
           10
       )
     );
+
+    const riverRegion = this.getRiverRegion(x, z);
+    const riverDepth =
+      riverRegion > riverThreshold ? (riverRegion - riverThreshold) * 20 : 0;
+
+    return Math.floor(Math.max(1, height - riverDepth));
+  }
+
+  private isRiver(x: number, z: number) {
+    return this.getRiverRegion(x, z) > riverThreshold;
   }
 
   private isCave(x: number, y: number, z: number) {
@@ -51,8 +68,12 @@ export class BoxyTerrain {
 
     if (this.isCave(x, y, z)) return "air";
 
+    if (this.isRiver(x, z) && y < seaLevel) return "water";
+
     if (y > h) return "air";
+
     if (y === h) return "grass";
+
     return "stone";
   }
 
@@ -86,6 +107,12 @@ export class BoxyTerrain {
         color: "darkgreen",
         transparent: true,
         opacity: 0.9,
+      });
+    } else if (type === "water") {
+      mesh.material = new THREE.MeshStandardMaterial({
+        color: "blue",
+        transparent: true,
+        opacity: 0.6,
       });
     } else {
       throw new Error(`Unknown tree type ${type}`);
@@ -139,6 +166,7 @@ export class BoxyTerrain {
                 this.placeLeaves(x, y + 5, z);
               }
             }
+
             continue;
           }
 

@@ -68,12 +68,8 @@ export class BoxyTerrain {
 
     if (this.isCave(x, y, z)) return "air";
 
-    if (this.isRiver(x, z) && y < seaLevel) return "water";
-
     if (y > h) return "air";
-
     if (y === h) return "grass";
-
     return "stone";
   }
 
@@ -166,7 +162,6 @@ export class BoxyTerrain {
                 this.placeLeaves(x, y + 5, z);
               }
             }
-
             continue;
           }
 
@@ -190,6 +185,20 @@ export class BoxyTerrain {
           }
 
           this.setBlock(x, y, z, block);
+        }
+
+        for (let y = 0; y <= seaLevel; y++) {
+          const current = this.getBlock(x, y, z);
+
+          // only fill empty space with water
+          if (current === "air") {
+            const isRiver = this.isRiver(x, z);
+
+            // only fill river zones OR low sea-level areas
+            if (isRiver || y <= seaLevel) {
+              this.setBlock(x, y, z, "water");
+            }
+          }
         }
       }
     }

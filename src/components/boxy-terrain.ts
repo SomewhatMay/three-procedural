@@ -43,7 +43,7 @@ export class BoxyTerrain {
     const riverDepth =
       riverRegion > riverThreshold ? (riverRegion - riverThreshold) * 20 : 0;
 
-    return Math.floor(Math.max(1, height - riverDepth));
+    return Math.floor(seaLevel / 2 + Math.max(0, height - riverDepth));
   }
 
   private isRiver(x: number, z: number) {

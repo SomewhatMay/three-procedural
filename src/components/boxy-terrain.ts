@@ -151,7 +151,7 @@ export class BoxyTerrain {
           if (block === "air") {
             const bottom = this.getBlock(x, y - 1, z);
 
-            if (bottom === "grass") {
+            if (bottom === "grass" && y > seaLevel && !this.isRiver(x, z)) {
               const hasTree = this.trees.hasTree(x, z);
 
               if (hasTree) {

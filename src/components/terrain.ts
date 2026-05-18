@@ -24,7 +24,6 @@ export class Terrain {
     const position = this.plane.geometry.getAttribute(
       "position"
     ) as THREE.BufferAttribute;
-
     for (let i = 0; i < position.count; i++) {
       const elapsed = TIMER.getElapsed() * 0.25;
       const height =
@@ -33,7 +32,6 @@ export class Terrain {
       +noise2D(position.getX(i) + elapsed, position.getY(i) + elapsed) * 0.5;
       position.setZ(i, height);
     }
-
     position.needsUpdate = true;
     this.plane.geometry.computeVertexNormals();
   }

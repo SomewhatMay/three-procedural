@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-const frustumSize = 5;
+const frustumSize = 10;
 
 export const camera = new THREE.OrthographicCamera();
 const updateCanvas = () => {
@@ -16,7 +16,7 @@ const updateCanvas = () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 };
 
-camera.position.add(new THREE.Vector3(3, 3, 5));
+camera.position.add(new THREE.Vector3(5, 5, 8));
 camera.lookAt(new THREE.Vector3(0, 0, 0));
 
 export const renderer = new THREE.WebGLRenderer({

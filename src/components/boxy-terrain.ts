@@ -2,11 +2,12 @@ import * as THREE from "three";
 import { scene } from "../world/scene";
 import { createNoise2D, createNoise3D } from "simplex-noise";
 import { HEIGHT } from "../main";
+import { Trees } from "./trees";
 
 const noise2D = createNoise2D();
 const noise3D = createNoise3D();
 
-type BlockType = "air" | "grass" | "stone";
+type BlockType = "air" | "grass" | "stone" | "wood" | "leaves";
 
 export class BoxyTerrain {
   private blocks = new Map<string, THREE.Mesh>();
@@ -14,7 +15,11 @@ export class BoxyTerrain {
   private geometry = new THREE.BoxGeometry(1, 1, 1);
   private material = new THREE.MeshStandardMaterial({ vertexColors: false });
 
-  constructor() {}
+  private trees: Trees;
+
+  constructor() {
+    this.trees = new Trees(this);
+  }
 
   private getHeight(x: number, z: number): number {
     return Math.floor(
@@ -55,8 +60,7 @@ export class BoxyTerrain {
     return `${x}|${y}|${z}`;
   }
 
-  setBlock(x: number, y: number, z: number): void {
-    const type = this.getBlock(x, y, z);
+  setBlock(x: number, y: number, z: number, type: BlockType): void {
     const key = this.key(x, y, z);
 
     // Remove if a block already exists
@@ -73,8 +77,18 @@ export class BoxyTerrain {
 
     if (type === "grass") {
       mesh.material = new THREE.MeshStandardMaterial({ color: "green" });
-    } else {
+    } else if (type === "stone") {
       mesh.material = new THREE.MeshStandardMaterial({ color: "gray" });
+    } else if (type === "wood") {
+      mesh.material = new THREE.MeshStandardMaterial({ color: "brown" });
+    } else if (type === "leaves") {
+      mesh.material = new THREE.MeshStandardMaterial({
+        color: "darkgreen",
+        transparent: true,
+        opacity: 0.9,
+      });
+    } else {
+      throw new Error(`Unknown tree type ${type}`);
     }
     scene.add(mesh);
     this.blocks.set(key, mesh);
@@ -82,10 +96,23 @@ export class BoxyTerrain {
 
   generate(sizeX: number, sizeY: number, sizeZ: number): void {
     for (let x = 0; x < sizeX; x++) {
-      for (let y = 0; y < sizeY; y++) {
-        for (let z = 0; z < sizeZ; z++) {
+      for (let z = 0; z < sizeZ; z++) {
+        for (let y = 0; y < sizeY; y++) {
           const block = this.getBlock(x, y, z);
-          if (block === "air") continue;
+
+          // Place tree and do not place anything here if it's not visible
+          if (block === "air") {
+            const bottom = this.getBlock(x, y - 1, z);
+
+            if (bottom === "grass") {
+              const hasTree = this.trees.hasTree(x, z);
+
+              if (hasTree) {
+                this.setBlock(x, y, z, "wood");
+              }
+            }
+            continue;
+          }
 
           const top = this.getBlock(x, y + 1, z);
           const right = this.getBlock(x + 1, y, z);
@@ -102,9 +129,11 @@ export class BoxyTerrain {
             back === "air" ||
             bottom === "air";
 
-          if (!isVisible) continue;
+          if (!isVisible) {
+            continue;
+          }
 
-          this.setBlock(x, y, z);
+          this.setBlock(x, y, z, block);
         }
       }
     }

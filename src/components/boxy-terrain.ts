@@ -94,6 +94,30 @@ export class BoxyTerrain {
     this.blocks.set(key, mesh);
   }
 
+  private placeLeaves(cx: number, cy: number, cz: number): void {
+    const radius = 2;
+
+    for (let x = -radius; x <= radius; x++) {
+      for (let y = -radius; y <= radius; y++) {
+        for (let z = -radius; z <= radius; z++) {
+          const dist = Math.abs(x) + Math.abs(y) + Math.abs(z);
+
+          // rough spherical-ish shape
+          if (dist > 3) continue;
+
+          const lx = cx + x;
+          const ly = cy + y;
+          const lz = cz + z;
+
+          // only place leaves in air
+          if (this.getBlock(lx, ly, lz) === "air") {
+            this.setBlock(lx, ly, lz, "leaves");
+          }
+        }
+      }
+    }
+  }
+
   generate(sizeX: number, sizeY: number, sizeZ: number): void {
     for (let x = 0; x < sizeX; x++) {
       for (let z = 0; z < sizeZ; z++) {
@@ -108,7 +132,11 @@ export class BoxyTerrain {
               const hasTree = this.trees.hasTree(x, z);
 
               if (hasTree) {
-                this.setBlock(x, y, z, "wood");
+                for (let i = 0; i < 3; i++) {
+                  this.setBlock(x, y + i, z, "wood");
+                }
+
+                this.placeLeaves(x, y + 5, z);
               }
             }
             continue;

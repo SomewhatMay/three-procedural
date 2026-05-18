@@ -6,8 +6,8 @@ import { createNoise2D } from "simplex-noise";
 const noise2D = createNoise2D();
 
 export class Terrain {
-  private xSegments = 100;
-  private ySegments = 100;
+  private xSegments = 50;
+  private ySegments = 50;
 
   private plane = new THREE.Mesh(
     new THREE.PlaneGeometry(5, 5, this.xSegments, this.ySegments),
@@ -26,10 +26,11 @@ export class Terrain {
     ) as THREE.BufferAttribute;
 
     for (let i = 0; i < position.count; i++) {
+      const elapsed = TIMER.getElapsed() * 0.25;
       const height =
-        Math.sin(position.getX(i) * 8 + TIMER.getElapsed()) * 0.2 -
-        Math.cos(position.getY(i) * 8 + TIMER.getElapsed()) * 0.2;
-
+        noise2D(position.getX(i) + elapsed, position.getY(i) + elapsed) * 0.01 +
+        noise2D(position.getX(i) + elapsed, position.getY(i) + elapsed) * 0.1;
+      +noise2D(position.getX(i) + elapsed, position.getY(i) + elapsed) * 0.5;
       position.setZ(i, height);
     }
 

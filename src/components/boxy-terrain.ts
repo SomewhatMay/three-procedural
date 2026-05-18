@@ -1,42 +1,29 @@
 import * as THREE from "three";
 import { scene } from "../world/scene";
+import { createNoise2D } from "simplex-noise";
+
+const noise2D = createNoise2D();
 
 type BlockType = "air" | "grass" | "stone";
 
 export class BoxyTerrain {
-  private meshes: THREE.Mesh[][];
-
   private blocks = new Map<string, THREE.Mesh>();
-  private heights: number[][];
 
   private geometry = new THREE.BoxGeometry(1, 1, 1);
   private material = new THREE.MeshStandardMaterial({ vertexColors: false });
 
-  constructor(private sizeX: number, private sizeY: number) {
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-
-    this.heights = Array.from({ length: sizeX }, () => Array(sizeY).fill(1));
-
-    this.meshes = Array.from({ length: sizeX }, () => Array<THREE.Mesh>(sizeY));
-
-    for (let x = 0; x < sizeX; x++) {
-      for (let y = 0; y < sizeY; y++) {
-        const material = new THREE.MeshNormalMaterial();
-
-        const mesh = new THREE.Mesh(geometry, material);
-
-        const h = this.heights[x][y];
-
-        mesh.position.set(x, h + 0.5, y);
-
-        scene.add(mesh);
-        this.meshes[x][y] = mesh;
-      }
-    }
-  }
+  constructor() {}
 
   private getHeight(x: number, z: number): number {
-    return 10;
+    return Math.floor(
+      Math.max(
+        1,
+        noise2D(x * 0.01, z * 0.01) * 3 +
+          noise2D(x * 0.05, z * 0.05) * 1 +
+          noise2D(x * 0.001, z * 0.001) * 15 +
+          10
+      )
+    );
   }
 
   getBlock(x: number, y: number, z: number): BlockType {
@@ -51,15 +38,58 @@ export class BoxyTerrain {
     return `${x}|${y}|${z}`;
   }
 
-  setHeight(x: number, y: number, height: number) {
-    this.heights[x][y] = height;
+  setBlock(x: number, y: number, z: number): void {
+    const type = this.getBlock(x, y, z);
+    const key = this.key(x, y, z);
 
-    const mesh = this.meshes[x][y];
+    // Remove if a block already exists
+    const existing = this.blocks.get(key);
+    if (existing) {
+      scene.remove(existing);
+      this.blocks.delete(key);
+    }
 
-    mesh.position.y = height + 0.5;
+    // Skip air
+    if (type === "air") return;
+    const mesh = new THREE.Mesh(this.geometry, this.material);
+    mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
+
+    if (type === "grass") {
+      mesh.material = new THREE.MeshStandardMaterial({ color: "green" });
+    } else {
+      mesh.material = new THREE.MeshStandardMaterial({ color: "gray" });
+    }
+    scene.add(mesh);
+    this.blocks.set(key, mesh);
   }
 
-  setTexture(x: number, y: number, material: THREE.Material) {
-    this.meshes[x][y].material = material;
+  generate(sizeX: number, sizeY: number, sizeZ: number): void {
+    for (let x = 0; x < sizeX; x++) {
+      for (let y = 0; y < sizeY; y++) {
+        for (let z = 0; z < sizeZ; z++) {
+          const block = this.getBlock(x, y, z);
+          if (block === "air") continue;
+
+          const top = this.getBlock(x, y + 1, z);
+          const right = this.getBlock(x + 1, y, z);
+          const left = this.getBlock(x - 1, y, z);
+          const front = this.getBlock(x, y, z + 1);
+          const back = this.getBlock(x, y, z - 1);
+          const bottom = this.getBlock(x, y - 1, z);
+
+          const isVisible =
+            top === "air" ||
+            right === "air" ||
+            left === "air" ||
+            front === "air" ||
+            back === "air" ||
+            bottom === "air";
+
+          if (!isVisible) continue;
+
+          this.setBlock(x, y, z);
+        }
+      }
+    }
   }
 }

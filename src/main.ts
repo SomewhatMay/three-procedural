@@ -6,19 +6,17 @@ import { Cube } from "./components/cube";
 import { Terrain } from "./components/terrain";
 import { TIMER } from "./world/clock";
 import { BoxyTerrain } from "./components/boxy-terrain";
+import { updateControls } from "./world/controls";
 
-// const terrain = new Terrain();
-const terrain = new BoxyTerrain(5, 5);
+const terrain = new BoxyTerrain();
+
+terrain.generate(100, 40, 100);
 
 function animate(): void {
   requestAnimationFrame(animate);
   TIMER.update();
 
-  terrain.setHeight(0, 0, 2);
-  terrain.setHeight(3, 2, 3);
-
-  // terrain.update();
-
+  updateControls();
   renderer.render(scene, camera);
 }
 

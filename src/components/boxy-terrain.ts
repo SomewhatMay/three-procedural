@@ -7,16 +7,44 @@ import { Trees } from "./trees";
 const noise2D = createNoise2D();
 const noise3D = createNoise3D();
 
-type BlockType = "air" | "grass" | "stone" | "wood" | "leaves" | "water";
+type SolidBlockType = (typeof SOLID_BLOCK_TYPES)[number];
+type BlockType = SolidBlockType | "air";
+
+const SOLID_BLOCK_TYPES = [
+  "grass",
+  "stone",
+  "wood",
+  "leaves",
+  "water",
+] as const;
 
 const seaLevel = 9;
 const riverThreshold = 0.78;
 
 export class BoxyTerrain {
-  private blocks = new Map<string, THREE.Mesh>();
+  private blocks = new Map<string, BlockType>();
+
+  private instancedMeshes = new Map<SolidBlockType, THREE.InstancedMesh>();
 
   private geometry = new THREE.BoxGeometry(1, 1, 1);
-  private material = new THREE.MeshStandardMaterial({ vertexColors: false });
+
+  private materials: Record<SolidBlockType, THREE.Material> = {
+    grass: new THREE.MeshStandardMaterial({ color: "green" }),
+    stone: new THREE.MeshStandardMaterial({ color: "gray" }),
+    wood: new THREE.MeshStandardMaterial({ color: "brown" }),
+    leaves: new THREE.MeshStandardMaterial({
+      color: "darkgreen",
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+    }),
+    water: new THREE.MeshBasicMaterial({
+      color: "blue",
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false,
+    }),
+  };
 
   private trees: Trees;
 
@@ -63,58 +91,37 @@ export class BoxyTerrain {
     return value + depthMultiplier > 0.8;
   }
 
+  private key(x: number, y: number, z: number) {
+    return `${x}|${y}|${z}`;
+  }
+
+  private parseKey(key: string): [number, number, number] {
+    const [xs, ys, zs] = key.split("|");
+    return [Number(xs), Number(ys), Number(zs)];
+  }
+
   getBlock(x: number, y: number, z: number): BlockType {
+    const key = this.key(x, y, z);
+    const overridden = this.blocks.get(key);
+    if (overridden) return overridden;
+
     const h = this.getHeight(x, z);
 
     if (this.isCave(x, y, z)) return "air";
-
     if (y > h) return "air";
     if (y === h) return "grass";
     return "stone";
   }
 
-  private key(x: number, y: number, z: number) {
-    return `${x}|${y}|${z}`;
-  }
-
   setBlock(x: number, y: number, z: number, type: BlockType): void {
     const key = this.key(x, y, z);
 
-    // Remove if a block already exists
-    const existing = this.blocks.get(key);
-    if (existing) {
-      scene.remove(existing);
+    if (type === "air") {
       this.blocks.delete(key);
+      return;
     }
 
-    // Skip air
-    if (type === "air") return;
-    const mesh = new THREE.Mesh(this.geometry, this.material);
-    mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
-
-    if (type === "grass") {
-      mesh.material = new THREE.MeshStandardMaterial({ color: "green" });
-    } else if (type === "stone") {
-      mesh.material = new THREE.MeshStandardMaterial({ color: "gray" });
-    } else if (type === "wood") {
-      mesh.material = new THREE.MeshStandardMaterial({ color: "brown" });
-    } else if (type === "leaves") {
-      mesh.material = new THREE.MeshStandardMaterial({
-        color: "darkgreen",
-        transparent: true,
-        opacity: 0.9,
-      });
-    } else if (type === "water") {
-      mesh.material = new THREE.MeshStandardMaterial({
-        color: "blue",
-        transparent: true,
-        opacity: 0.6,
-      });
-    } else {
-      throw new Error(`Unknown tree type ${type}`);
-    }
-    scene.add(mesh);
-    this.blocks.set(key, mesh);
+    this.blocks.set(key, type);
   }
 
   private placeLeaves(cx: number, cy: number, cz: number): void {
@@ -125,14 +132,12 @@ export class BoxyTerrain {
         for (let z = -radius; z <= radius; z++) {
           const dist = Math.abs(x) + Math.abs(y) + Math.abs(z);
 
-          // rough spherical-ish shape
           if (dist > 3) continue;
 
           const lx = cx + x;
           const ly = cy + y;
           const lz = cz + z;
 
-          // only place leaves in air
           if (this.getBlock(lx, ly, lz) === "air") {
             this.setBlock(lx, ly, lz, "leaves");
           }
@@ -141,20 +146,67 @@ export class BoxyTerrain {
     }
   }
 
+  private clearInstancedMeshes(): void {
+    for (const [_, mesh] of this.instancedMeshes) {
+      scene.remove(mesh);
+    }
+    this.instancedMeshes.clear();
+  }
+
+  private rebuildInstancedMeshes(): void {
+    this.clearInstancedMeshes();
+
+    const positions: Record<SolidBlockType, THREE.Vector3[]> = {
+      grass: [],
+      stone: [],
+      wood: [],
+      leaves: [],
+      water: [],
+    };
+
+    for (const [key, type] of this.blocks.entries()) {
+      if (type === "air") continue;
+      const [x, y, z] = this.parseKey(key);
+      positions[type].push(new THREE.Vector3(x, y, z));
+    }
+
+    const matrix = new THREE.Matrix4();
+
+    for (const type of SOLID_BLOCK_TYPES) {
+      const blockPositions = positions[type];
+      if (blockPositions.length === 0) continue;
+
+      const mesh = new THREE.InstancedMesh(
+        this.geometry,
+        this.materials[type],
+        blockPositions.length
+      );
+
+      for (let i = 0; i < blockPositions.length; i++) {
+        const p = blockPositions[i];
+        matrix.makeTranslation(p.x + 0.5, p.y + 0.5, p.z + 0.5);
+        mesh.setMatrixAt(i, matrix);
+      }
+
+      mesh.instanceMatrix.needsUpdate = true;
+      scene.add(mesh);
+      this.instancedMeshes.set(type, mesh);
+    }
+  }
+
   generate(sizeX: number, sizeY: number, sizeZ: number): void {
+    this.blocks.clear();
+
     for (let x = 0; x < sizeX; x++) {
       for (let z = 0; z < sizeZ; z++) {
         for (let y = 0; y < sizeY; y++) {
           const block = this.getBlock(x, y, z);
 
-          // Place tree and do not place anything here if it's not visible
           if (block === "air") {
             const bottom = this.getBlock(x, y - 1, z);
 
             if (bottom === "grass" && y > seaLevel && !this.isRiver(x, z)) {
-              const hasTree = this.trees.hasTree(x, z);
-
-              if (hasTree) {
+              if (this.trees.hasTree(x, z)) {
                 for (let i = 0; i < 3; i++) {
                   this.setBlock(x, y + i, z, "wood");
                 }
@@ -162,6 +214,7 @@ export class BoxyTerrain {
                 this.placeLeaves(x, y + 5, z);
               }
             }
+
             continue;
           }
 
@@ -180,9 +233,7 @@ export class BoxyTerrain {
             back === "air" ||
             bottom === "air";
 
-          if (!isVisible) {
-            continue;
-          }
+          if (!isVisible) continue;
 
           this.setBlock(x, y, z, block);
         }
@@ -190,11 +241,9 @@ export class BoxyTerrain {
         for (let y = 0; y <= seaLevel; y++) {
           const current = this.getBlock(x, y, z);
 
-          // only fill empty space with water
           if (current === "air") {
             const isRiver = this.isRiver(x, z);
 
-            // only fill river zones OR low sea-level areas
             if (isRiver || y <= seaLevel) {
               this.setBlock(x, y, z, "water");
             }
@@ -202,5 +251,7 @@ export class BoxyTerrain {
         }
       }
     }
+
+    this.rebuildInstancedMeshes();
   }
 }

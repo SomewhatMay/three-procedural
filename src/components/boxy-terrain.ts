@@ -34,15 +34,9 @@ export class BoxyTerrain {
     wood: new THREE.MeshStandardMaterial({ color: "brown" }),
     leaves: new THREE.MeshStandardMaterial({
       color: "darkgreen",
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false,
     }),
     water: new THREE.MeshBasicMaterial({
       color: "blue",
-      transparent: true,
-      opacity: 0.6,
-      depthWrite: false,
     }),
   };
 

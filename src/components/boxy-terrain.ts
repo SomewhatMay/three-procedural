@@ -80,7 +80,7 @@ export class BoxyTerrain {
 
     const depthMultiplier = y / HEIGHT;
 
-    return value + depthMultiplier > 0.8;
+    return value - depthMultiplier > 0.8;
   }
 
   private key(x: number, y: number, z: number) {

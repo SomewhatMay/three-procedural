@@ -76,9 +76,7 @@ export class BoxyTerrain {
     if (y === 1) return false;
 
     const frequency = 0.05;
-    const value =
-      noise3D(x * frequency, y * frequency, z * frequency) +
-      0 * noise3D(x * frequency * 2, y * frequency * 2, z * frequency * 2);
+    const value = noise3D(x * frequency, y * frequency, z * frequency);
 
     const depthMultiplier = y / HEIGHT;
 
